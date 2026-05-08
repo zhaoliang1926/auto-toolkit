@@ -14,6 +14,7 @@ import speech_recognition as sr
 VOICE_DIR = os.path.expanduser("~/.claude/voice-chat")
 INBOX = os.path.join(VOICE_DIR, "inbox.txt")
 VOICEPRINT_FILE = os.path.join(VOICE_DIR, "voiceprint.json")
+MUTE_FILE = os.path.join(VOICE_DIR, "mute_until")
 os.makedirs(VOICE_DIR, exist_ok=True)
 
 WAKE_WORD = "星河"
@@ -74,8 +75,16 @@ def transcribe(audiofile):
 
 # ---- TTS ----
 def speak(text):
-    # Speak, then pause recording briefly to avoid echo
+    # Speak, then mute mic for 3 seconds to avoid echo
     subprocess.run(["say", "-v", "Tingting", text])
+    with open(MUTE_FILE, "w") as f:
+        f.write(str(time.time() + 3))
+
+def is_muted():
+    try:
+        with open(MUTE_FILE) as f:
+            return time.time() < float(f.read().strip())
+    except: return False
 
 def main():
     print(f"Wake word: '{WAKE_WORD}'")
@@ -91,6 +100,11 @@ def main():
 
     while True:
         try:
+            # Skip if muted (after TTS to avoid echo)
+            if is_muted():
+                time.sleep(0.5)
+                continue
+
             # Phase 1: Listen for wake word
             print("[听]", end="", flush=True)
             clip = record_clip(LISTEN_CLIP)
